@@ -17,23 +17,18 @@ func validationEnviroments() error {
 	if os.Getenv("TWITTER_CONSUMER_KEY") == "" {
 		return errors.New("TWITTER_CONSUMER_KEY is blank")
 	}
-
 	if os.Getenv("TWITTER_CONSUMER_SECRET") == "" {
 		return errors.New("TWITTER_CONSUMER_KEY is blank")
 	}
-
 	if os.Getenv("TWITTER_OAUTH_TOKEN") == "" {
 		return errors.New("TWITTER_OAUTH_TOKEN is blank")
 	}
-
 	if os.Getenv("TWITTER_OAUTH_TOKEN_SECRET") == "" {
 		return errors.New("TWITTER_OAUTH_TOKEN_SECRET is blank")
 	}
-
 	if os.Getenv("SLACK_TOKEN") == "" {
 		return errors.New("SLACK_TOKEN is blank")
 	}
-
 	if os.Getenv("SLACK_CHANNEL") == "" {
 		return errors.New("SLACK_CHANNEL is blank")
 	}
@@ -59,23 +54,33 @@ func postSlack(api *slack.Client, channelName string, message string) error {
 	return nil
 }
 
-func main() {
-	var err error
-
+func initialize() (*anaconda.TwitterApi, *slack.Client, string, error) {
 	// validation Enviroments value
-	err = validationEnviroments()
+	err := validationEnviroments()
 	if err != nil {
-		log.Fatalf("Error: %s", err)
+		log.Printf("Error: %s", err)
+		return nil, nil, "", err
 	}
 
 	// set Twitter infomation
 	anaconda.SetConsumerKey(os.Getenv("TWITTER_CONSUMER_KEY"))
 	anaconda.SetConsumerSecret(os.Getenv("TWITTER_CONSUMER_SECRET"))
-	api := anaconda.NewTwitterApi(os.Getenv("TWITTER_OAUTH_TOKEN"), os.Getenv("TWITTER_OAUTH_TOKEN_SECRET"))
-	api.SetLogger(anaconda.BasicLogger)
+	twitterAPI := anaconda.NewTwitterApi(os.Getenv("TWITTER_OAUTH_TOKEN"), os.Getenv("TWITTER_OAUTH_TOKEN_SECRET"))
+	twitterAPI.SetLogger(anaconda.BasicLogger)
 
 	slackAPI := slack.New(os.Getenv("SLACK_TOKEN"))
 	slackChannel := os.Getenv("SLACK_CHANNEL")
+
+	return twitterAPI, slackAPI, slackChannel, nil
+}
+
+func main() {
+	var err error
+
+	twitterAPI, slackAPI, slackChannel, err := initialize()
+	if err != nil {
+		log.Fatalf("Error: %s", err)
+	}
 
 	// make mecab map
 	tagger, err := mecab.New(map[string]string{})
@@ -86,7 +91,7 @@ func main() {
 
 	// Twitter connect
 	v := url.Values{}
-	stream := api.UserStream(v)
+	stream := twitterAPI.UserStream(v)
 
 	// User Stream wait...
 	for {
